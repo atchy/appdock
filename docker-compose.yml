@@ -1,0 +1,70 @@
+version: '3'
+services:
+  db:
+    image: ${APP_VER}/db
+    build:
+      context: ./db
+      dockerfile: ${APP_VER}/Dockerfile
+      args:
+        - app_ver=${APP_VER}
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      # MySQLが使用する永続化ボリューム
+      - db-data-${APP_VER}:/var/lib/mysql/
+      - db-log-${APP_VER}:/var/log/mysql/
+    ports:
+      - "3307:3306"
+  web:
+    image: ${APP_VER}/web
+    build:
+      context: ./web
+      dockerfile: ${APP_VER}/Dockerfile
+      #dockerfile: ${APP_VER}/Dockerfile-xdebug
+      args:
+        - app_ver=${APP_VER}
+    command:
+      # エントリポイントに渡すパラメータ
+      - ${DB_HOST}
+      - ${DB_ROOT_PASSWORD}
+      - /var/apps/
+      - /var/blueprint/${APP_VER}/${BLUEPRINT_FILE_NAME}
+    volumes:
+      # appsのソースディレクトリをバインド
+      - ${HOST_APPS_PATH}:/var/apps/
+      # blueprint のディレクトリをバインド
+      - ${BLUEPRINT_DIR_PATH}:/var/blueprint/
+      # appsと共有する永続化ボリューム
+      - apps-files-${APP_VER}:/var/files/
+      # Apacheが使用する永続化ボリューム
+      - web-log-${APP_VER}:/var/log/
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+      - apps
+  apps:
+    image: ${APP_VER}/apps
+    tty: true
+    build:
+      context: ./apps
+    command:
+      # エントリポイントに渡すパラメータ
+      - /apps/blueprint/${APP_VER}/${BLUEPRINT_FILE_NAME}
+    volumes:
+      # blueprint のディレクトリをバインド
+      - ${BLUEPRINT_DIR_PATH}:/apps/blueprint/
+      # appsが使用する永続化ボリューム
+      - apps-files-${APP_VER}:/apps/files/
+    depends_on:
+      - db
+volumes:
+  db-data-old:
+  db-log-old:
+  web-log-old:
+  db-data-new:
+  db-log-new:
+  web-log-new:
+  apps-files-old:
+  apps-files-new:
+
